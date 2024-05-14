@@ -20,6 +20,20 @@ YELLOW_LASER = pygame.image.load(os.path.join("assets", "pixel_laser_yellow.png"
 BG = pygame.transform.scale(pygame.image.load(os.path.join("assets", "background-black.png")), (WIDTH, HEIGHT))
 
 
+class Item:
+    def __init__(self, x, y, img):
+        self.x = x
+        self.y = y
+        self.img = img
+        self.mask = pygame.mask.from_surface(self.img)
+
+    def draw(self, window):
+        window.blit(self.img, (self.x, self.y))
+
+    def collision(self, obj):
+        return collide(obj, self)
+
+
 class Laser:
     def __init__(self, x, y, img):
         self.x = x
@@ -86,6 +100,9 @@ class Ship:
         return self.ship_img.get_height()
 
 
+active_items = []
+
+
 class Player(Ship):
     def __init__(self, x, y, health):
         super().__init__(x, y, health)
@@ -103,6 +120,8 @@ class Player(Ship):
             else:
                 for obj in objs:
                     if laser.collision(obj):
+                        item = Item(obj.x, obj.y, YELLOW_LASER)
+                        active_items.append(item)
                         objs.remove(obj)
                         self.lasers.remove(laser)
 
@@ -122,7 +141,7 @@ class Enemy(Ship):
     COLOR_MAP = {
         "red": (RED_SPACE_SHIP, RED_LASER),
         "green": (GREEN_SPACE_SHIP, GREEN_LASER),
-        "blue": (BLUE_SPACE_SHIP, YELLOW_LASER)
+        "blue": (BLUE_SPACE_SHIP, BLUE_LASER)
     }
 
     def __init__(self, x, y, color, health):
@@ -160,8 +179,11 @@ def main():
 
     wave_intensity = 0
     enemy_speed = 1
-    laser_speed = 8
     player_speed = 3
+    p_laser_speed = 8
+    e_laser_speed = 8
+
+    item_perks = [1, 2, 3, 4, 5]
 
     player = Player(300, 600, 100)
 
@@ -181,6 +203,9 @@ def main():
 
         player.draw(WIN)
 
+        for a in active_items[:]:
+            a.draw(WIN)
+
         if lost:
             lost_label = lost_font.render(f"You Lost!!!", 1, (200, 80, 80))
             WIN.blit(lost_label, (WIDTH/2 - lost_label.get_width()/2, 350))
@@ -197,6 +222,7 @@ def main():
 
         if lost:
             if lost_timer > 2*fps:
+                active_items.clear()
                 run = False
             else:
                 continue
@@ -226,9 +252,24 @@ def main():
         if keys[pygame.K_SPACE]:
             player.shoot()
 
+        for i in active_items[:]:
+            if collide(i, player):
+                c = random.choice(item_perks)
+                if c == 1:
+                    player_speed += 1
+                elif c == 2:
+                    e_laser_speed += 0.5
+                elif c == 3:
+                    lives += 1
+                elif c == 4:
+                    p_laser_speed += 1
+                elif c == 5:
+                    lives = 1
+                active_items.remove(i)
+
         for enemy in enemies[:]:
             enemy.move(enemy_speed)
-            enemy.move_lasers(laser_speed, player)
+            enemy.move_lasers(e_laser_speed, player)
 
             if random.randrange(0, 2*60) == 1:
                 enemy.shoot()
@@ -241,7 +282,7 @@ def main():
                 lives -= 1
                 enemies.remove(enemy)
 
-        player.move_lasers(-laser_speed, enemies)
+        player.move_lasers(-p_laser_speed, enemies)
 
 
 def main_menu():
