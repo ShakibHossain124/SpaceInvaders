@@ -110,6 +110,7 @@ class Player(Ship):
         self.laser_img = YELLOW_LASER
         self.mask = pygame.mask.from_surface(self.ship_img)
         self.max_health = health
+        self.score = 0
 
     def move_lasers(self, laser_speed, objs):
         self.cooldown()
@@ -120,6 +121,7 @@ class Player(Ship):
             else:
                 for obj in objs:
                     if laser.collision(obj):
+                        self.score += 1
                         item = Item(obj.x, obj.y, YELLOW_LASER)
                         active_items.append(item)
                         objs.remove(obj)
@@ -174,9 +176,7 @@ def main():
     lost_timer = 0
     main_font = pygame.font.SysFont("comicsans", 50)
     lost_font = pygame.font.SysFont("comicsans", 60)
-
     enemies = []
-
     wave_intensity = 0
     enemy_speed = 1
     player_speed = 3
@@ -194,9 +194,11 @@ def main():
 
         lives_level = main_font.render(f"Lives: {lives}", 1, (200, 100, 100))
         level_label = main_font.render(f"Level: {level}", 1, (255, 255, 255))
+        score_label = main_font.render(f"Score: {player.score}", 1, (100, 100, 200))
 
         WIN.blit(lives_level, (10, 10))
         WIN.blit(level_label, (WIDTH-level_label.get_width()-10, 10))
+        WIN.blit(score_label, ((WIDTH/2)-score_label.get_width()/2, 10))
 
         for e in enemies:
             e.draw(WIN)
@@ -276,6 +278,7 @@ def main():
 
             if collide(enemy, player):
                 player.health -= 50
+                player.score += 1
                 enemies.remove(enemy)
 
             if enemy.y + enemy.get_height() > HEIGHT:
