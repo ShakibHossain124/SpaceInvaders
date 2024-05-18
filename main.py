@@ -17,18 +17,21 @@ GREEN_LASER = pygame.image.load(os.path.join("assets", "pixel_laser_green.png"))
 BLUE_LASER = pygame.image.load(os.path.join("assets", "pixel_laser_blue.png"))
 YELLOW_LASER = pygame.image.load(os.path.join("assets", "pixel_laser_yellow.png"))
 
+GENIE_LAMP = pygame.image.load(os.path.join("assets", "genieLamp16.png"))
+BOSS = pygame.image.load((os.path.join("assets", "boss.png")))
+
 BG = pygame.transform.scale(pygame.image.load(os.path.join("assets", "background-black.png")), (WIDTH, HEIGHT))
 
 
 class Item:
     def __init__(self, x, y, img):
-        self.x = x
-        self.y = y
+        self.x = x + 30
+        self.y = y + 30
         self.img = img
-        self.mask = pygame.mask.from_surface(self.img)
+        self.mask = pygame.mask.from_surface(GENIE_LAMP)
 
     def draw(self, window):
-        window.blit(self.img, (self.x, self.y))
+        window.blit(GENIE_LAMP, (self.x, self.y))
 
     def collision(self, obj):
         return collide(obj, self)
@@ -48,7 +51,7 @@ class Laser:
         self.y += laser_speed
 
     def off_screen(self):
-        return not (HEIGHT >= self.y >= 0)
+        return not (HEIGHT >= self.y >= -10)
 
     def collision(self, obj):
         return collide(obj, self)
@@ -124,7 +127,9 @@ class Player(Ship):
                         self.score += 1
                         item = Item(obj.x, obj.y, YELLOW_LASER)
                         active_items.append(item)
-                        objs.remove(obj)
+                        obj.health -= 50
+                        if obj.health <= 0:
+                            objs.remove(obj)
                         self.lasers.remove(laser)
 
     def draw(self, window):
@@ -155,10 +160,30 @@ class Enemy(Ship):
         self.y += vel
 
     def shoot(self):
-        if self.cool_down_counter == 0:
-            laser = Laser(self.x-22, self.y, self.laser_img)
-            self.lasers.append(laser)
-            self.cool_down_counter = 1
+        laser = Laser(self.x-22, self.y, self.laser_img)
+        self.lasers.append(laser)
+
+
+class Boss(Ship):
+    def __init__(self, x, y, health):
+        super().__init__(x, y, health)
+        self.ship_img, self.laser_img = BOSS, YELLOW_LASER
+        self.mask = pygame.mask.from_surface(self.ship_img)
+        self.s = 0
+
+    def move(self, vel):
+        if self.s == 0:
+            self.x += vel
+            if self.x >= WIDTH - 50:
+                self.s = 1
+        else:
+            self.x -= vel
+            if self.x <= 100:
+                self.s = 0
+
+    def shoot(self):
+        laser = Laser(self.x-22, self.y, self.laser_img)
+        self.lasers.append(laser)
 
 
 def collide(obj1, obj2):
@@ -176,6 +201,7 @@ def main():
     lost_timer = 0
     main_font = pygame.font.SysFont("comicsans", 50)
     lost_font = pygame.font.SysFont("comicsans", 60)
+    player = Player(300, 600, 100)
     enemies = []
     wave_intensity = 0
     enemy_speed = 1
@@ -183,9 +209,7 @@ def main():
     p_laser_speed = 8
     e_laser_speed = 8
 
-    item_perks = [1, 2, 3, 4, 5]
-
-    player = Player(300, 600, 100)
+    item_perks = [1, 2, 3, 4, 5, 6, 7]
 
     clock = pygame.time.Clock()
 
@@ -236,8 +260,11 @@ def main():
                 enemy = Enemy(random.randrange(100, WIDTH-100),
                               random.randrange(-1500, -100),
                               random.choice(["red", "green", "blue"]),
-                              100)
+                              50)
                 enemies.append(enemy)
+            if level % 2 == 0 and level > 0:
+                boss = Boss(WIDTH/2, 100, 1000)
+                enemies.append(boss)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -265,8 +292,13 @@ def main():
                     lives += 1
                 elif c == 4:
                     p_laser_speed += 1
-                elif c == 5:
-                    lives = 1
+                elif c == 5 and player.health < player.max_health:
+                    player.health += 10
+                elif c == 6:
+                    player.COOLDOWN -= 2
+                elif c == 7:
+                    player_speed -= .334
+
                 active_items.remove(i)
 
         for enemy in enemies[:]:
@@ -279,7 +311,9 @@ def main():
             if collide(enemy, player):
                 player.health -= 50
                 player.score += 1
-                enemies.remove(enemy)
+                enemy.health -= 100
+                if enemy.health <= 0:
+                    enemies.remove(enemy)
 
             if enemy.y + enemy.get_height() > HEIGHT:
                 lives -= 1
