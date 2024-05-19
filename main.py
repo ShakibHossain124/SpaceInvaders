@@ -51,7 +51,7 @@ class Laser:
         self.y += laser_speed
 
     def off_screen(self):
-        return not (HEIGHT >= self.y >= -10)
+        return not (HEIGHT >= self.y >= -15)
 
     def collision(self, obj):
         return collide(obj, self)
@@ -130,7 +130,8 @@ class Player(Ship):
                         obj.health -= 50
                         if obj.health <= 0:
                             objs.remove(obj)
-                        self.lasers.remove(laser)
+                        if laser in self.lasers:
+                            self.lasers.remove(laser)
 
     def draw(self, window):
         super().draw(window)
@@ -192,15 +193,14 @@ def collide(obj1, obj2):
     return obj1.mask.overlap(obj2.mask, (offset_x, offset_y)) is not None
 
 
-def main():
+def main(high_score):
     run = True
     lost = False
     fps = 60
     level = 0
-    lives = 3
+    chances = 3
     lost_timer = 0
-    main_font = pygame.font.SysFont("comicsans", 50)
-    lost_font = pygame.font.SysFont("comicsans", 60)
+
     player = Player(300, 600, 100)
     enemies = []
     wave_intensity = 0
@@ -208,19 +208,19 @@ def main():
     player_speed = 3
     p_laser_speed = 8
     e_laser_speed = 8
-
     item_perks = [1, 2, 3, 4, 5, 6, 7]
 
     clock = pygame.time.Clock()
 
     def redraw_window():
+        main_font = pygame.font.SysFont("comicsans", 50)
+        lost_font = pygame.font.SysFont("comicsans", 60)
         WIN.blit(BG, (0, 0))
-
-        lives_level = main_font.render(f"Lives: {lives}", 1, (200, 100, 100))
+        chances_level = main_font.render(f"Chances: {chances}", 1, (200, 100, 100))
         level_label = main_font.render(f"Level: {level}", 1, (255, 255, 255))
         score_label = main_font.render(f"Score: {player.score}", 1, (100, 100, 200))
 
-        WIN.blit(lives_level, (10, 10))
+        WIN.blit(chances_level, (10, 10))
         WIN.blit(level_label, (WIDTH-level_label.get_width()-10, 10))
         WIN.blit(score_label, ((WIDTH/2)-score_label.get_width()/2, 10))
 
@@ -242,11 +242,13 @@ def main():
         clock.tick(fps)
         redraw_window()
 
-        if lives <= 0 or player.health <= 0:
+        if chances <= 0 or player.health <= 0:
             lost = True
             lost_timer += 1
 
         if lost:
+            if player.score > high_score:
+                write_high_score("highscore.txt", player.score)
             if lost_timer > 2*fps:
                 active_items.clear()
                 run = False
@@ -289,7 +291,7 @@ def main():
                 elif c == 2:
                     e_laser_speed += 0.5
                 elif c == 3:
-                    lives += 1
+                    chances += 1
                 elif c == 4:
                     p_laser_speed += 1
                 elif c == 5 and player.health < player.max_health:
@@ -316,24 +318,51 @@ def main():
                     enemies.remove(enemy)
 
             if enemy.y + enemy.get_height() > HEIGHT:
-                lives -= 1
+                chances -= 1
                 enemies.remove(enemy)
 
         player.move_lasers(-p_laser_speed, enemies)
 
 
+def read_high_score(filename):
+    try:
+        with open(filename, 'r') as file:
+            content = file.read().strip()
+            if content:
+                high_score = int(content)
+            else:
+                high_score = 0
+    except (FileNotFoundError, ValueError):
+        high_score = 0
+    return high_score
+
+
+def write_high_score(filename, score):
+    with open(filename, 'w') as file:
+        file.write(str(score))
+
+
 def main_menu():
+    fps = 1200
     title_font = pygame.font.SysFont("comicsans", 50)
+    highscore_font = pygame.font.SysFont("comicsans", 30)
+
+    clock = pygame.time.Clock()
     run = True
+
     while run:
+        clock.tick(fps)
+        high_score = read_high_score("highscore.txt")
         WIN.blit(BG, (0, 0))
         title_label = title_font.render("Press The Mouse To Begin...", 1, (255, 255, 255))
+        highscore_label = highscore_font.render(f"Highscore: {high_score}", 1, (100, 100, 100))
         WIN.blit(title_label, (WIDTH/2-title_label.get_width()/2, HEIGHT/2-title_label.get_height()/2))
+        WIN.blit(highscore_label, ((WIDTH/2)-highscore_label.get_width()/2, 20))
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
             if event.type == pygame.MOUSEBUTTONDOWN:
-                main()
+                main(high_score)
 
         pygame.display.update()
 
